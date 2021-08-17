@@ -341,7 +341,7 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 
         let lmb_pressed = self.ctx.mouse().left_button_state == ElementState::Pressed;
         let rmb_pressed = self.ctx.mouse().right_button_state == ElementState::Pressed;
-        if !self.ctx.selection_is_empty() && (lmb_pressed) { // || rmb_pressed) { // TODO don't hardcode right mouse button for scrolling
+        if !self.ctx.selection_is_empty() && (lmb_pressed || rmb_pressed) {
             self.update_selection_scrolling(y);
         }
 
@@ -509,6 +509,17 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
     }
 
     fn on_mouse_press(&mut self, button: MouseButton) {
+        if self.ctx.mouse().left_button_state == self.ctx.mouse().right_button_state && (button == MouseButton::Left || button == MouseButton::Right) {
+            //TODO this is just for testing, make this a proper config option or something
+            //TODO require the window to be focused in order to begin scrollback
+            let mx = self.ctx.mouse().x;
+            let my = self.ctx.mouse().y;
+            self.ctx.scrollback_start(mx, my);
+            if self.ctx.selection_is_empty() {
+                self.ctx.clear_selection();
+            }
+            return; // TODO unsure if this is good or bad
+        }
         // Handle mouse mode.
         if !self.ctx.modifiers().shift() && self.ctx.mouse_mode() {
             self.ctx.mouse_mut().click_state = ClickState::None;
@@ -591,9 +602,8 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
     }
 
     fn on_mouse_release(&mut self, button: MouseButton) {
-        if let MouseButton::Right = button {
+        if MouseButton::Right == button || MouseButton::Left == button {
             //TODO this is just for testing, make this a proper config option or something
-            eprintln!("Ending scrollback");
             self.ctx.scrollback_end();
         }
 
@@ -737,13 +747,6 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
                     // Process mouse press before bindings to update the `click_state`.
                     self.on_mouse_press(button);
                     self.process_mouse_bindings(button);
-                    if let MouseButton::Right = button {
-                        //TODO this is just for testing, make this a proper config option or something
-                        let mx = self.ctx.mouse().x;
-                        let my = self.ctx.mouse().y;
-                        eprintln!("Mouse is at {}, {}", mx, my);
-                        self.ctx.scrollback_start(mx, my);
-                    }
                 }
                 ElementState::Released => self.on_mouse_release(button),
             }
