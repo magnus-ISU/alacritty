@@ -39,11 +39,12 @@ use crate::config::Config;
 use crate::display::bell::VisualBell;
 use crate::display::color::List;
 use crate::display::content::RenderableContent;
+use crate::display::scrollback::ScrollbackRectangles;
 use crate::display::cursor::IntoRects;
 use crate::display::hint::{HintMatch, HintState};
 use crate::display::meter::Meter;
 use crate::display::window::Window;
-use crate::event::{Mouse, SearchState};
+use crate::event::{Mouse, SearchState, ScrollbackState};
 use crate::message_bar::{MessageBuffer, MessageType};
 use crate::renderer::rects::{RenderLines, RenderRect};
 use crate::renderer::{self, GlyphCache, QuadRenderer};
@@ -483,6 +484,7 @@ impl Display {
         message_buffer: &MessageBuffer,
         config: &Config,
         search_state: &SearchState,
+        scrollback_state: &ScrollbackState,
     ) {
         // Collect renderable content before the terminal is dropped.
         let mut content = RenderableContent::new(config, self, &terminal, search_state);
@@ -553,8 +555,15 @@ impl Display {
         // Push the cursor rects for rendering.
         if let Some(cursor) = cursor {
             for rect in cursor.rects(&size_info, config.cursor.thickness()) {
+                eprintln!("{:?}", rect);
                 rects.push(rect);
             }
+        }
+
+        eprintln!("Draw!");
+        use alacritty_terminal::term::color::Rgb;
+        if scrollback_state.scrollback_isactive() {
+            rects.push(RenderRect::new(20., 20., 10., 10., Rgb {r: 0, g: 0, b: 0}, 1.));
         }
 
         // Push visual bell after url/underline/strikeout rects.

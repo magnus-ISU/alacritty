@@ -168,6 +168,12 @@ pub struct ScrollbackState {
     last_y: i32,
 }
 
+impl ScrollbackState {
+    pub fn scrollback_isactive(&self) -> bool {
+        self.start_y != usize::max_value()
+    }
+}
+
 impl Default for ScrollbackState {
     fn default() -> Self {
         Self {
@@ -624,7 +630,7 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
 
     #[inline]
     fn scrollback_isactive(&self) -> bool {
-        self.scrollback_state.start_y != usize::max_value()
+        self.scrollback_state.scrollback_isactive()
     }
 
     #[inline]
@@ -1227,7 +1233,7 @@ impl<N: Notify + OnResize> Processor<N> {
                 }
 
                 // Redraw screen.
-                self.display.draw(terminal, &self.message_buffer, &self.config, &self.search_state);
+                self.display.draw(terminal, &self.message_buffer, &self.config, &self.search_state, &self.scrollback_state);
             }
         });
 

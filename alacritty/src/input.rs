@@ -350,6 +350,9 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 
         if self.ctx.scrollback_isactive() {
             let ymotion = self.ctx.scrollback_update(x, y);
+            //TODO potentially require moving more than one pixel in the opposite direction before
+            //reversing. Try moving mouse to bottom of screen - will oscillate 1 pixel back and
+            //forth for no reason, and is very bad.
             if ymotion != 0 {
                 // TODO performance problem right here, 100% cpu utilization on one core.
                 // Though then again scrolling normally I get up to 50% so maybe it is fine?
