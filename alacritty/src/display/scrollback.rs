@@ -25,8 +25,6 @@ pub struct ScrollbackRects {
     viewport_top_y: f32,
     viewport_width: f32,
     viewport_height: f32,
-
-    //pub scrollback_state: &'a ScrollbackState,
 }
 
 impl ScrollbackRects {
@@ -54,18 +52,33 @@ impl ScrollbackRects {
             viewport_height,
         }
     }
+    // TODO maybe figure out how to scroll with the scrollbar rather than always a constant inertia
+    // TODO make the scrollbar show up in padding rather than over the terminal - though this might already be the case, I haven't tested
+    pub fn scrollbar(&self) -> RenderRect {
+        // the full scrollbar
+        let visible_portion = self.size_info.screen_lines() as f32 / self.total_lines as f32;
+        let scrollbar_height = visible_portion * self.size_info.height();
+        let scrolling_height = self.size_info.height() - scrollbar_height;
+        let num_offscreen_lines = self.total_lines - self.size_info.screen_lines();
+        let portion_through = (num_offscreen_lines - self.display_offset) as f32 / num_offscreen_lines as f32;
+        return RenderRect::new(
+            0.0,
+            portion_through * scrolling_height,
+            BAR_SIZE,
+            scrollbar_height,
+            HIGHLIGHT_COLOR,
+            HIGHLIGHT_ALPHA,
+        );
+    }
 }
 
 // TODO figure out how to show an actual preview of the content in the terminal
-// TODO maybe seperate the scrollbar from the preview so that you can have one or the other. Also
-// maybe allow configuring them to appear on the left, middle, or right side
-// TODO maybe figure out how to scroll with the scrollbar rather than always a constant inertia
 impl Iterator for ScrollbackRects {
     type Item = RenderRect;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.index += 1;
-        // TODO yandare dev
+        // TODO yandare dev, probably either have a function that takes the `rects` object and calls add on it itself, or make these two cases be seperate functions and iterate only over the lines
         if self.index == 1 {
             // the sidebar
             return Some(RenderRect::new(
@@ -85,22 +98,6 @@ impl Iterator for ScrollbackRects {
                     self.viewport_height,
                     FOREGROUND_COLOR,
                     FOREGROUND_ALPHA,
-            ));
-        } else if self.index == 3 {
-            // the full scrollbar
-            let visible_portion = self.size_info.screen_lines() as f32 / self.total_lines as f32;
-            let scrollbar_height = visible_portion * self.size_info.height();
-            let scrolling_height = self.size_info.height() - scrollbar_height;
-            let num_offscreen_lines = self.total_lines - self.size_info.screen_lines();
-            let portion_through = (num_offscreen_lines - self.display_offset) as f32 / num_offscreen_lines as f32;
-            eprintln!("visible: {}, scrollbar: {}, scrolling: {}, portion: {}", visible_portion, scrollbar_height, scrolling_height, portion_through);
-            return Some(RenderRect::new(
-                    0.0,
-                    portion_through * scrolling_height,
-                    BAR_SIZE,
-                    scrollbar_height,
-                    HIGHLIGHT_COLOR,
-                    HIGHLIGHT_ALPHA,
             ));
         }
         None

@@ -561,8 +561,11 @@ impl Display {
             }
         }
 
+        // Push anything related to the scrolling overlay, if applicable
+        // TODO maybe seperate the scrollbar from the preview so that you can have one or the other. Also maybe allow configuring them to appear on the left, middle, or right side
         if scrollback_state.scrollback_isactive() {
             let scrollback_rects = ScrollbackRects::new(total_lines, display_offset, size_info);
+            rects.push(scrollback_rects.scrollbar());
             for rect in scrollback_rects {
                 rects.push(rect);
             }
