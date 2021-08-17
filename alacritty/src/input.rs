@@ -100,6 +100,10 @@ pub trait ActionContext<T: EventListener> {
     fn advance_search_origin(&mut self, _direction: Direction) {}
     fn search_direction(&self) -> Direction;
     fn search_active(&self) -> bool;
+    fn scrollback_isactive(&self) -> bool;
+    fn scrollback_start(&mut self, sx: usize, sy: usize);
+    fn scrollback_update(&mut self, mx: i32, my: i32) -> i32;
+    fn scrollback_end(&mut self);
     fn on_typing_start(&mut self) {}
     fn toggle_vi_mode(&mut self) {}
     fn hint_input(&mut self, _character: char) {}
@@ -337,12 +341,20 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
 
         let lmb_pressed = self.ctx.mouse().left_button_state == ElementState::Pressed;
         let rmb_pressed = self.ctx.mouse().right_button_state == ElementState::Pressed;
-        if !self.ctx.selection_is_empty() && (lmb_pressed || rmb_pressed) {
+        if !self.ctx.selection_is_empty() && (lmb_pressed) { // || rmb_pressed) { // TODO don't hardcode right mouse button for scrolling
             self.update_selection_scrolling(y);
         }
 
         let display_offset = self.ctx.terminal().grid().display_offset();
         let old_point = self.ctx.mouse().point(&size_info, display_offset);
+
+        if self.ctx.scrollback_isactive() {
+            let ymotion = self.ctx.scrollback_update(x, y);
+            if ymotion != 0 {
+                self.ctx.scroll(Scroll::Delta(ymotion)); // TODO HUUUUGE performance problem right here, 100% cpu utilization on one core. Though then again scrolling normally I get up to 50% so maybe it is fine?
+            }
+            return;
+        }
 
         let x = min(max(x, 0), size_info.width() as i32 - 1) as usize;
         let y = min(max(y, 0), size_info.height() as i32 - 1) as usize;
@@ -575,6 +587,12 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
     }
 
     fn on_mouse_release(&mut self, button: MouseButton) {
+        if let MouseButton::Right = button {
+            //TODO this is just for testing, make this a proper config option or something
+            eprintln!("Ending scrollback");
+            self.ctx.scrollback_end();
+        }
+
         if !self.ctx.modifiers().shift() && self.ctx.mouse_mode() {
             let code = match button {
                 MouseButton::Left => 0,
@@ -715,7 +733,14 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
                     // Process mouse press before bindings to update the `click_state`.
                     self.on_mouse_press(button);
                     self.process_mouse_bindings(button);
-                },
+                    if let MouseButton::Right = button {
+                        //TODO this is just for testing, make this a proper config option or something
+                        let mx = self.ctx.mouse().x;
+                        let my = self.ctx.mouse().y;
+                        eprintln!("Mouse is at {}, {}", mx, my);
+                        self.ctx.scrollback_start(mx, my);
+                    }
+                }
                 ElementState::Released => self.on_mouse_release(button),
             }
         }

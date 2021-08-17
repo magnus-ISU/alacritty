@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::VecDeque;
+use std::convert::TryInto;
 use std::env;
 use std::f32;
 use std::fmt::Debug;
@@ -156,6 +157,28 @@ impl Default for SearchState {
     }
 }
 
+pub struct ScrollbackState {
+    // usize because that is how it is stored in self.ctx.mouse
+    // Where the user clicked to initiate the scrollback
+    //start_x: usize,
+    start_y: usize,
+
+    // last location of the cursor
+    //last_x: i32,
+    last_y: i32,
+}
+
+impl Default for ScrollbackState {
+    fn default() -> Self {
+        Self {
+            //start_x: usize::max_value(),
+            start_y: usize::max_value(),
+            //last_x: 0,
+            last_y: 0,
+        }
+    }
+}
+
 pub struct ActionContext<'a, N, T> {
     pub notifier: &'a mut N,
     pub terminal: &'a mut Term<T>,
@@ -171,6 +194,7 @@ pub struct ActionContext<'a, N, T> {
     pub event_loop: &'a EventLoopWindowTarget<Event>,
     pub scheduler: &'a mut Scheduler,
     pub search_state: &'a mut SearchState,
+    pub scrollback_state: &'a mut ScrollbackState,
     cli_options: &'a CLIOptions,
     font_size: &'a mut Size,
     dirty: &'a mut bool,
@@ -598,6 +622,33 @@ impl<'a, N: Notify + 'a, T: EventListener> input::ActionContext<T> for ActionCon
         self.search_state.history_index.is_some()
     }
 
+    #[inline]
+    fn scrollback_isactive(&self) -> bool {
+        self.scrollback_state.start_y != usize::max_value()
+    }
+
+    #[inline]
+    fn scrollback_start(&mut self, _sx: usize, sy: usize) {
+        //self.scrollback_state.start_x = sx;
+        self.scrollback_state.start_y = sy;
+        //self.scrollback_state.last_x = sx.try_into().unwrap_or(0);
+        self.scrollback_state.last_y = sy.try_into().unwrap_or(0); // should maybe even just be unwrap(), as you would need quite a few monitors to achieve this even on a 16 bit architecture
+    }
+
+    #[inline]
+    fn scrollback_update(&mut self, _mx: i32, my: i32) -> i32 {
+        let difference: i32 = self.scrollback_state.last_y - my;
+        //self.scrollback_state.last_x = mx; // unused for now
+        self.scrollback_state.last_y = my;
+        difference
+    }
+
+    #[inline]
+    fn scrollback_end(&mut self) {
+        //self.scrollback_state.start_x = usize::max_value();
+        self.scrollback_state.start_y = usize::max_value();
+    }
+
     /// Handle keyboard typing start.
     ///
     /// This will temporarily disable some features like terminal cursor blinking or the mouse
@@ -988,6 +1039,7 @@ pub struct Processor<N> {
     font_size: Size,
     event_queue: Vec<GlutinEvent<'static, Event>>,
     search_state: SearchState,
+    scrollback_state: ScrollbackState,
     cli_options: CLIOptions,
     dirty: bool,
 }
@@ -1013,6 +1065,7 @@ impl<N: Notify + OnResize> Processor<N> {
             received_count: Default::default(),
             suppress_chars: Default::default(),
             search_state: Default::default(),
+            scrollback_state: Default::default(),
             event_queue: Default::default(),
             modifiers: Default::default(),
             mouse: Default::default(),
@@ -1130,6 +1183,7 @@ impl<N: Notify + OnResize> Processor<N> {
                 config: &mut self.config,
                 scheduler: &mut scheduler,
                 search_state: &mut self.search_state,
+                scrollback_state: &mut self.scrollback_state,
                 cli_options: &self.cli_options,
                 dirty: &mut self.dirty,
                 event_loop,
