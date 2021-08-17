@@ -12,7 +12,7 @@ const FOREGROUND_COLOR: Rgb = Rgb { r: 255, g: 255, b: 255 };
 const FOREGROUND_ALPHA: f32 = 0.6;
 const HIGHLIGHT_COLOR: Rgb = Rgb { r: 64, g: 32, b: 192 };
 const HIGHLIGHT_ALPHA: f32 = 1.0;
-const PIXELS_PER_CHAR: f32 = 3.0;
+const PIXELS_PER_CHAR: f32 = 2.0;
 const BAR_SIZE: f32 = 4.0;
 
 pub struct ScrollbackRects {
