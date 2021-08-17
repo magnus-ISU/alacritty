@@ -348,10 +348,15 @@ impl<T: EventListener, A: ActionContext<T>> Processor<T, A> {
         let display_offset = self.ctx.terminal().grid().display_offset();
         let old_point = self.ctx.mouse().point(&size_info, display_offset);
 
+        eprintln!("lmb pressed: {}", lmb_pressed);
         if self.ctx.scrollback_isactive() {
             let ymotion = self.ctx.scrollback_update(x, y);
             if ymotion != 0 {
-                self.ctx.scroll(Scroll::Delta(ymotion)); // TODO HUUUUGE performance problem right here, 100% cpu utilization on one core. Though then again scrolling normally I get up to 50% so maybe it is fine?
+                // TODO HUUUUGE performance problem right here, 100% cpu utilization on one core.
+                // Though then again scrolling normally I get up to 50% so maybe it is fine?
+                // Additionally, dragging right mouse button now causes performanece issues in, for
+                // example, htop or neovim
+                self.ctx.scroll(Scroll::Delta(ymotion));
             }
             return;
         }
