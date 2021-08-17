@@ -39,7 +39,7 @@ use crate::config::Config;
 use crate::display::bell::VisualBell;
 use crate::display::color::List;
 use crate::display::content::RenderableContent;
-use crate::display::scrollback::ScrollbackRectangles;
+use crate::display::scrollback::ScrollbackRects;
 use crate::display::cursor::IntoRects;
 use crate::display::hint::{HintMatch, HintState};
 use crate::display::meter::Meter;
@@ -52,6 +52,7 @@ use crate::renderer::{self, GlyphCache, QuadRenderer};
 pub mod content;
 pub mod cursor;
 pub mod hint;
+pub mod scrollback;
 pub mod window;
 
 mod bell;
@@ -486,6 +487,7 @@ impl Display {
         search_state: &SearchState,
         scrollback_state: &ScrollbackState,
     ) {
+        eprintln!("redrawing screen");
         // Collect renderable content before the terminal is dropped.
         let mut content = RenderableContent::new(config, self, &terminal, search_state);
         let mut grid_cells = Vec::new();
@@ -555,15 +557,15 @@ impl Display {
         // Push the cursor rects for rendering.
         if let Some(cursor) = cursor {
             for rect in cursor.rects(&size_info, config.cursor.thickness()) {
-                eprintln!("{:?}", rect);
                 rects.push(rect);
             }
         }
 
-        eprintln!("Draw!");
-        use alacritty_terminal::term::color::Rgb;
         if scrollback_state.scrollback_isactive() {
-            rects.push(RenderRect::new(20., 20., 10., 10., Rgb {r: 0, g: 0, b: 0}, 1.));
+            let scrollback_rects = ScrollbackRects::new(total_lines, display_offset, size_info);
+            for rect in scrollback_rects {
+                rects.push(rect);
+            }
         }
 
         // Push visual bell after url/underline/strikeout rects.
